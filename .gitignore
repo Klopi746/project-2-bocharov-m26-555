@@ -1,0 +1,14 @@
+.venv/
+dist/
+build/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ruff_cache/
+.mypy_cache/
+.vscode/
+.env
+.env.*
+!.env.example
+db_meta.json
+data/
