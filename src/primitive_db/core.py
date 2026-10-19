@@ -16,16 +16,12 @@ def insert(metadata: dict, table_name: str, values: list) -> list[dict]:
     raise NotImplementedError("Implement insert")
 
 
-def select(
-    table_data: list[dict], where_clause: dict | None = None
-) -> list[dict]:
+def select(table_data: list[dict], where_clause: dict | None = None) -> list[dict]:
     """Return all rows or those matching a where clause."""
     raise NotImplementedError("Implement select")
 
 
-def update(
-    table_data: list[dict], set_clause: dict, where_clause: dict
-) -> list[dict]:
+def update(table_data: list[dict], set_clause: dict, where_clause: dict) -> list[dict]:
     """Update rows matching a where clause."""
     raise NotImplementedError("Implement update")
 

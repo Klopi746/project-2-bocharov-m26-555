@@ -1,14 +1,22 @@
-.venv/
-dist/
-build/
+# Virtual environment and package builds
+/.venv/
+/dist/
+/build/
+/wheels/
+
+# Python and tool caches
 __pycache__/
 *.py[cod]
 *.egg-info/
 .ruff_cache/
 .mypy_cache/
-.vscode/
-.env
-.env.*
-!.env.example
-db_meta.json
-data/
+
+# Local editor settings and environment files
+/.vscode/
+/.env
+/.env.*
+!/.env.example
+
+# Database files created while running the application
+/db_meta.json
+/data/

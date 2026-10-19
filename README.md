@@ -3,6 +3,8 @@
 Дисциплина «Программирование на Python», группа М26-555. Это стартовый
 шаблон под конечную структуру задания, а не готовое решение. Работа не сдана.
 
+Приватный репозиторий: [GitHub](https://github.com/Klopi746/project-2-bocharov-m26-555).
+
 ## Запуск шаблона
 
 Нужны uv и Python 3.12.10 (версия закреплена в .python-version). Из корня
@@ -12,7 +14,11 @@
     uv run database
     uv run python -m primitive_db.main
     uv run ruff check .
+    uv run ruff format --check .
     uv build
+    uvx twine check dist/primitive_db-0.1.0.tar.gz dist/primitive_db-0.1.0-py3-none-any.whl
+
+## Готовность шаблона
 
 Сейчас программа показывает справку и принимает команды help и exit.
 Создание таблиц, CRUD, парсинг, декораторы и кэш ещё не реализованы.
