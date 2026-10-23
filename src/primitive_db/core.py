@@ -1,6 +1,7 @@
 """Procedural table management and data operations."""
 
 from .constants import ID_COLUMN, ID_DEFINITION, TYPE_CLASSES, VALID_TYPES
+from .decorators import confirm_action, handle_db_errors, log_time
 from .utils import load_table_data, validate_name
 
 
@@ -26,6 +27,7 @@ def get_schema(metadata: dict, table_name: str) -> dict[str, str]:
     return schema
 
 
+@handle_db_errors
 def create_table(metadata: dict, table_name: str, columns: list[str]) -> dict:
     """Add a table with ID:int, after validating its name and column types."""
     validate_name(table_name)
@@ -51,6 +53,8 @@ def create_table(metadata: dict, table_name: str, columns: list[str]) -> dict:
     return metadata
 
 
+@handle_db_errors
+@confirm_action("удаление таблицы")
 def drop_table(metadata: dict, table_name: str) -> dict:
     """Remove an existing table from metadata."""
     get_schema(metadata, table_name)
@@ -58,11 +62,14 @@ def drop_table(metadata: dict, table_name: str) -> dict:
     return metadata
 
 
+@handle_db_errors
 def list_tables(metadata: dict) -> list[str]:
     """Return table names in creation order."""
     return list(metadata)
 
 
+@handle_db_errors
+@log_time
 def insert(metadata: dict, table_name: str, values: list) -> list[dict]:
     """Validate values and add a row with an automatically generated ID."""
     schema = get_schema(metadata, table_name)
@@ -112,6 +119,8 @@ def matches(row: dict, where_clause: dict) -> bool:
     )
 
 
+@handle_db_errors
+@log_time
 def select(table_data: list[dict], where_clause: dict | None = None) -> list[dict]:
     """Return all rows or those matching a where clause."""
     if where_clause is None:
@@ -120,6 +129,7 @@ def select(table_data: list[dict], where_clause: dict | None = None) -> list[dic
     return [row.copy() for row in table_data if matches(row, where_clause)]
 
 
+@handle_db_errors
 def update(table_data: list[dict], set_clause: dict, where_clause: dict) -> list[dict]:
     """Update rows matching a where clause."""
     if ID_COLUMN in set_clause:
@@ -132,6 +142,8 @@ def update(table_data: list[dict], set_clause: dict, where_clause: dict) -> list
     ]
 
 
+@handle_db_errors
+@confirm_action("удаление записей")
 def delete(table_data: list[dict], where_clause: dict) -> list[dict]:
     """Delete rows matching a where clause."""
     _validate_row_clause(table_data, where_clause)

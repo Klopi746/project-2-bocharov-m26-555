@@ -1,10 +1,13 @@
 """Interactive command loop, persistence and tabular output."""
 
+import json
+
 import prompt
 from prettytable import PrettyTable
 
 from . import core, parser, utils
 from .constants import APP_TITLE, HELP_TEXT, META_FILE
+from .decorators import create_cacher, handle_db_errors
 
 
 def print_help() -> None:
@@ -23,7 +26,7 @@ def print_rows(schema: dict, rows: list[dict]) -> None:
         print("Записей не найдено.")
 
 
-def execute_data_command(arguments: dict, metadata: dict) -> None:
+def execute_data_command(arguments: dict, metadata: dict, cache_result) -> None:
     """Validate and execute one CRUD or info command."""
     action = arguments["action"]
     table_name = arguments["table"]
@@ -44,7 +47,12 @@ def execute_data_command(arguments: dict, metadata: dict) -> None:
     if where_clause is not None:
         core.validate_fields(schema, where_clause)
     if action == "select":
-        selected = core.select(rows, where_clause)
+        key = json.dumps(
+            [table_name, schema, rows, where_clause],
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+        selected = cache_result(key, lambda: core.select(rows, where_clause))
         if selected is not None:
             print_rows(schema, selected)
         return
@@ -62,7 +70,8 @@ def execute_data_command(arguments: dict, metadata: dict) -> None:
         print(message)
 
 
-def execute_command(command: str) -> None:
+@handle_db_errors
+def execute_command(command: str, cache_result=None) -> None:
     """Execute a command against database files in the working directory."""
     arguments = parser.parse_command(command)
     if not arguments:
@@ -95,21 +104,20 @@ def execute_command(command: str) -> None:
         tables = core.list_tables(metadata)
         print("\n".join(f"- {name}" for name in tables) or "Таблиц пока нет.")
     else:
-        execute_data_command(arguments, metadata)
+        execute_data_command(arguments, metadata, cache_result or create_cacher())
 
 
 def run() -> None:
     """Read commands until exit, q, EOF or a keyboard interrupt."""
     print(APP_TITLE)
     print_help()
+    cache_result = create_cacher()
     while True:
         try:
             command = prompt.string("Введите команду: ").strip()
             if command.lower() in ("exit", "q"):
                 return
-            execute_command(command)
+            execute_command(command, cache_result)
         except (EOFError, KeyboardInterrupt):
             print()
             return
-        except (KeyError, ValueError, OSError) as error:
-            print(f"Ошибка: {error}")
