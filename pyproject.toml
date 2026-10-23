@@ -1,7 +1,7 @@
 [project]
 name = "primitive-db"
 version = "0.1.0"
-description = "Starter for the primitive database homework"
+description = "Procedural console database with typed tables and JSON persistence"
 readme = "README.md"
 authors = [
     { name = "Danila Bocharov" }
