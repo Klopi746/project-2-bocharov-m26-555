@@ -19,4 +19,5 @@ __pycache__/
 
 # Database files created while running the application
 /db_meta.json
+/db_meta.json.tmp
 /data/
