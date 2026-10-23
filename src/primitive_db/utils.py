@@ -3,7 +3,7 @@
 import json
 import os
 
-from .constants import DATA_DIR, JSON_INDENT, TEMP_SUFFIX
+from .constants import DATA_DIR, JSON_INDENT, JSON_SUFFIX, TEMP_SUFFIX
 
 
 def validate_name(name: str) -> None:
@@ -15,7 +15,27 @@ def validate_name(name: str) -> None:
 def table_path(table_name: str) -> str:
     """Return a safe relative filename for one table."""
     validate_name(table_name)
-    return os.path.join(DATA_DIR, f"{table_name}.json")
+    return os.path.join(DATA_DIR, table_name + JSON_SUFFIX)
+
+
+def table_storage_key(table_name: str) -> str:
+    """Compare storage paths using the current platform's filename rules."""
+    return os.path.normcase(table_path(table_name))
+
+
+def create_table_data(table_name: str) -> None:
+    """Exclusively create an empty table; never overwrite an existing file."""
+    filepath = table_path(table_name)
+    os.makedirs(DATA_DIR, exist_ok=True)
+    try:
+        with open(filepath, "x", encoding="utf-8") as destination:
+            json.dump([], destination)
+            destination.write("\n")
+    except FileExistsError:
+        raise ValueError(
+            f'Файл данных для таблицы "{table_name}" уже существует. '
+            "Создание отменено, существующие данные сохранены."
+        ) from None
 
 
 def _load_json(filepath: str, empty):

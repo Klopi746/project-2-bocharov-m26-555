@@ -2,6 +2,13 @@
 
 import shlex
 
+from .constants import (
+    EXIT_COMMAND,
+    INVALID_VALUE_MESSAGE,
+    SUPPORTED_COMMANDS,
+    UNKNOWN_COMMAND_MESSAGE,
+)
+
 
 def tokenize(command: str) -> list[str]:
     """Split syntax outside quotes while keeping quoted literals intact."""
@@ -53,7 +60,7 @@ def parse_value(token: str):
             return int(token)
         except ValueError:
             pass
-    raise ValueError(f"Некорректное значение: {token}. Строки вводите в кавычках.")
+    raise ValueError(INVALID_VALUE_MESSAGE.format(value=token))
 
 
 def parse_values(tokens: list[str]) -> list:
@@ -81,7 +88,9 @@ def parse_command(command: str) -> dict:
     if not tokens:
         return {}
     action = tokens[0].lower()
-    if action in ("help", "exit", "q", "list_tables") and len(tokens) == 1:
+    if action not in SUPPORTED_COMMANDS:
+        raise ValueError(UNKNOWN_COMMAND_MESSAGE.format(command=tokens[0]))
+    if action in ("help", EXIT_COMMAND, "list_tables") and len(tokens) == 1:
         return {"action": action}
     if action == "create_table" and len(tokens) >= 2:
         return {"action": action, "table": tokens[1], "columns": tokens[2:]}
@@ -112,4 +121,4 @@ def parse_command(command: str) -> dict:
                 "set": parse_assignment(tokens[3:6]),
                 "where": parse_assignment(tokens[7:]),
             }
-    raise ValueError("Некорректная команда или число аргументов. Введите help.")
+    raise ValueError(INVALID_VALUE_MESSAGE.format(value=command))

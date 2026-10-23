@@ -6,7 +6,17 @@ import prompt
 from prettytable import PrettyTable
 
 from . import core, parser, utils
-from .constants import APP_TITLE, HELP_TEXT, META_FILE
+from .constants import (
+    APP_TITLE,
+    DELETE_SUCCESS_MESSAGE,
+    EXIT_COMMAND,
+    HELP_TEXT,
+    ID_COLUMN,
+    INSERT_SUCCESS_MESSAGE,
+    META_FILE,
+    NO_MATCHING_ROWS_MESSAGE,
+    UPDATE_SUCCESS_MESSAGE,
+)
 from .decorators import create_cacher, handle_db_errors
 
 
@@ -23,7 +33,16 @@ def print_rows(schema: dict, rows: list[dict]) -> None:
         table.add_row([row[name] for name in schema])
     print(table)
     if not rows:
-        print("Записей не найдено.")
+        print(NO_MATCHING_ROWS_MESSAGE)
+
+
+def print_change_messages(action: str, table_name: str, identifiers: list[int]) -> None:
+    """Report each changed record using the assignment's console messages."""
+    template = UPDATE_SUCCESS_MESSAGE if action == "update" else DELETE_SUCCESS_MESSAGE
+    if not identifiers:
+        print(NO_MATCHING_ROWS_MESSAGE)
+    for identifier in identifiers:
+        print(template.format(identifier=identifier, table_name=table_name))
 
 
 def execute_data_command(arguments: dict, metadata: dict, cache_result) -> None:
@@ -35,11 +54,15 @@ def execute_data_command(arguments: dict, metadata: dict, cache_result) -> None:
         rows = core.insert(metadata, table_name, arguments["values"])
         if rows is not None:
             utils.save_table_data(table_name, rows)
-            print(f'Запись с ID={rows[-1]["ID"]} успешно добавлена в "{table_name}".')
+            print(
+                INSERT_SUCCESS_MESSAGE.format(
+                    identifier=rows[-1][ID_COLUMN], table_name=table_name
+                )
+            )
         return
     rows = utils.load_table_data(table_name)
     if action == "info":
-        print(f'Таблица: "{table_name}"')
+        print(f"Таблица: {table_name}")
         print("Столбцы: " + ", ".join(metadata[table_name]))
         print(f"Количество записей: {len(rows)}")
         return
@@ -59,15 +82,14 @@ def execute_data_command(arguments: dict, metadata: dict, cache_result) -> None:
     if action == "update":
         core.validate_fields(schema, arguments["set"], allow_id=False)
         result = core.update(rows, arguments["set"], where_clause)
-        count = sum(core.matches(row, where_clause) for row in rows)
-        message = f"Записи успешно обновлены: {count}."
     else:
         result = core.delete(rows, where_clause)
-        count = len(rows) - len(result) if result is not None else 0
-        message = f"Записи успешно удалены: {count}."
     if result is not None:
         utils.save_table_data(table_name, result)
-        print(message)
+        identifiers = [
+            row[ID_COLUMN] for row in rows if core.matches(row, where_clause)
+        ]
+        print_change_messages(action, table_name, identifiers)
 
 
 @handle_db_errors
@@ -80,14 +102,14 @@ def execute_command(command: str, cache_result=None) -> None:
     if action == "help":
         print_help()
         return
-    if action in ("exit", "q"):
+    if action == EXIT_COMMAND:
         return
     metadata = utils.load_metadata(META_FILE)
     if action == "create_table":
         table_name = arguments["table"]
         if core.create_table(metadata, table_name, arguments["columns"]) is None:
             return
-        utils.save_table_data(table_name, [])
+        utils.create_table_data(table_name)
         utils.save_metadata(META_FILE, metadata)
         print(
             f'Таблица "{table_name}" успешно создана со столбцами: '
@@ -108,14 +130,14 @@ def execute_command(command: str, cache_result=None) -> None:
 
 
 def run() -> None:
-    """Read commands until exit, q, EOF or a keyboard interrupt."""
+    """Read commands until exit, EOF or a keyboard interrupt."""
     print(APP_TITLE)
     print_help()
     cache_result = create_cacher()
     while True:
         try:
             command = prompt.string("Введите команду: ").strip()
-            if command.lower() in ("exit", "q"):
+            if command.lower() == EXIT_COMMAND:
                 return
             execute_command(command, cache_result)
         except (EOFError, KeyboardInterrupt):

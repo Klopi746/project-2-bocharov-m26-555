@@ -1,8 +1,15 @@
 """Procedural table management and data operations."""
 
-from .constants import ID_COLUMN, ID_DEFINITION, TYPE_CLASSES, VALID_TYPES
+from .constants import (
+    ID_COLUMN,
+    ID_DEFINITION,
+    INVALID_VALUE_MESSAGE,
+    TYPE_CLASSES,
+    TYPE_INT,
+    VALID_TYPES,
+)
 from .decorators import confirm_action, handle_db_errors, log_time
-from .utils import load_table_data, validate_name
+from .utils import load_table_data, table_storage_key, validate_name
 
 
 def get_schema(metadata: dict, table_name: str) -> dict[str, str]:
@@ -22,8 +29,8 @@ def get_schema(metadata: dict, table_name: str) -> dict[str, str]:
         if name in schema or data_type not in VALID_TYPES:
             raise ValueError(f"Повторяющийся столбец или неверный тип: {definition}.")
         schema[name] = data_type
-    if schema.get(ID_COLUMN) != "int":
-        raise ValueError("В схеме отсутствует обязательный столбец ID:int.")
+    if schema.get(ID_COLUMN) != TYPE_INT:
+        raise ValueError(f"В схеме отсутствует обязательный столбец {ID_DEFINITION}.")
     return schema
 
 
@@ -31,7 +38,8 @@ def get_schema(metadata: dict, table_name: str) -> dict[str, str]:
 def create_table(metadata: dict, table_name: str, columns: list[str]) -> dict:
     """Add a table with ID:int, after validating its name and column types."""
     validate_name(table_name)
-    if table_name in metadata:
+    storage_key = table_storage_key(table_name)
+    if any(table_storage_key(name) == storage_key for name in metadata):
         raise ValueError(f'Таблица "{table_name}" уже существует.')
     definitions = []
     seen = set()
@@ -43,9 +51,9 @@ def create_table(metadata: dict, table_name: str, columns: list[str]) -> dict:
         if name in seen:
             raise ValueError(f'Столбец "{name}" указан несколько раз.')
         if data_type not in VALID_TYPES:
-            raise ValueError(f"Неподдерживаемый тип: {data_type}.")
-        if name == ID_COLUMN and data_type != "int":
-            raise ValueError("Столбец ID должен иметь тип int.")
+            raise ValueError(INVALID_VALUE_MESSAGE.format(value=data_type))
+        if name == ID_COLUMN and data_type != TYPE_INT:
+            raise ValueError(f"Столбец {ID_COLUMN} должен иметь тип {TYPE_INT}.")
         seen.add(name)
         if name != ID_COLUMN:
             definitions.append(definition)
@@ -96,7 +104,7 @@ def validate_fields(schema: dict, fields: dict, *, allow_id: bool = True) -> Non
         if name == ID_COLUMN and not allow_id:
             raise ValueError("ID создаётся автоматически и не может быть изменён.")
         if type(value) is not TYPE_CLASSES[schema[name]]:
-            raise ValueError(f'Столбец "{name}" ожидает тип {schema[name]}.')
+            raise ValueError(INVALID_VALUE_MESSAGE.format(value=value))
 
 
 def _validate_row_clause(table_data: list[dict], clause: dict) -> None:

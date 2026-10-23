@@ -4,6 +4,8 @@ import time
 
 import prompt
 
+from .constants import CONFIRMATION_ANSWER, INPUT_ERROR_PREFIXES
+
 
 def _preserve_metadata(wrapper, function):
     """Keep function identity without importing another runtime library."""
@@ -21,8 +23,15 @@ def handle_db_errors(function):
         try:
             return function(*args, **kwargs)
         except (KeyError, ValueError, OSError) as error:
-            message = error.args[0] if isinstance(error, KeyError) else str(error)
-            print(f"Ошибка: {message}")
+            message = (
+                str(error.args[0])
+                if isinstance(error, KeyError) and error.args
+                else str(error)
+            )
+            if message.startswith(INPUT_ERROR_PREFIXES):
+                print(message)
+            else:
+                print(f"Ошибка: {message}")
             return None
 
     return _preserve_metadata(wrapper, function)
@@ -37,9 +46,10 @@ def confirm_action(action_name: str):
         def wrapper(*args, **kwargs):
             """Run only the confirmed operation, returning None on cancellation."""
             answer = prompt.string(
-                f'Вы уверены, что хотите выполнить "{action_name}"? [y/n]: '
+                f'Вы уверены, что хотите выполнить "{action_name}"? [y/n]: ',
+                empty=True,
             )
-            if answer.strip().lower() != "y":
+            if answer != CONFIRMATION_ANSWER:
                 print("Операция отменена.")
                 return None
             return function(*args, **kwargs)
