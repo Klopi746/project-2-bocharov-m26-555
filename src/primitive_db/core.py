@@ -1,7 +1,7 @@
 """Procedural table management and data operations."""
 
-from .constants import ID_COLUMN, ID_DEFINITION, VALID_TYPES
-from .utils import validate_name
+from .constants import ID_COLUMN, ID_DEFINITION, TYPE_CLASSES, VALID_TYPES
+from .utils import load_table_data, validate_name
 
 
 def get_schema(metadata: dict, table_name: str) -> dict[str, str]:
@@ -65,19 +65,74 @@ def list_tables(metadata: dict) -> list[str]:
 
 def insert(metadata: dict, table_name: str, values: list) -> list[dict]:
     """Validate values and add a row with an automatically generated ID."""
-    raise NotImplementedError("Implement insert")
+    schema = get_schema(metadata, table_name)
+    columns = [name for name in schema if name != ID_COLUMN]
+    if len(values) != len(columns):
+        raise ValueError(f"Ожидается {len(columns)} значений, получено {len(values)}.")
+    fields = dict(zip(columns, values))
+    validate_fields(schema, fields, allow_id=False)
+    table_data = load_table_data(table_name)
+    identifiers = [row[ID_COLUMN] for row in table_data]
+    if any(type(value) is not int or value < 1 for value in identifiers):
+        raise ValueError("Существующие ID должны быть положительными целыми числами.")
+    if len(set(identifiers)) != len(identifiers):
+        raise ValueError("В таблице повторяются ID.")
+    new_id = max(identifiers, default=0) + 1
+    return [*table_data, {ID_COLUMN: new_id, **fields}]
+
+
+def validate_fields(schema: dict, fields: dict, *, allow_id: bool = True) -> None:
+    """Check column names and exact types, keeping bool distinct from int."""
+    for name, value in fields.items():
+        if name not in schema:
+            raise KeyError(f'Столбец "{name}" не существует.')
+        if name == ID_COLUMN and not allow_id:
+            raise ValueError("ID создаётся автоматически и не может быть изменён.")
+        if type(value) is not TYPE_CLASSES[schema[name]]:
+            raise ValueError(f'Столбец "{name}" ожидает тип {schema[name]}.')
+
+
+def _validate_row_clause(table_data: list[dict], clause: dict) -> None:
+    """Validate a clause against existing rows before performing any changes."""
+    if not clause:
+        raise ValueError("Условие не должно быть пустым.")
+    for row in table_data:
+        for name, value in clause.items():
+            if name not in row:
+                raise KeyError(f'Столбец "{name}" не существует.')
+            if type(row[name]) is not type(value):
+                raise ValueError(f'Неверный тип значения для столбца "{name}".')
+
+
+def matches(row: dict, where_clause: dict) -> bool:
+    """Compare fields with exact types rather than treating True as 1."""
+    return all(
+        type(row[name]) is type(value) and row[name] == value
+        for name, value in where_clause.items()
+    )
 
 
 def select(table_data: list[dict], where_clause: dict | None = None) -> list[dict]:
     """Return all rows or those matching a where clause."""
-    raise NotImplementedError("Implement select")
+    if where_clause is None:
+        return [row.copy() for row in table_data]
+    _validate_row_clause(table_data, where_clause)
+    return [row.copy() for row in table_data if matches(row, where_clause)]
 
 
 def update(table_data: list[dict], set_clause: dict, where_clause: dict) -> list[dict]:
     """Update rows matching a where clause."""
-    raise NotImplementedError("Implement update")
+    if ID_COLUMN in set_clause:
+        raise ValueError("ID создаётся автоматически и не может быть изменён.")
+    _validate_row_clause(table_data, set_clause)
+    _validate_row_clause(table_data, where_clause)
+    return [
+        {**row, **set_clause} if matches(row, where_clause) else row.copy()
+        for row in table_data
+    ]
 
 
 def delete(table_data: list[dict], where_clause: dict) -> list[dict]:
     """Delete rows matching a where clause."""
-    raise NotImplementedError("Implement delete")
+    _validate_row_clause(table_data, where_clause)
+    return [row.copy() for row in table_data if not matches(row, where_clause)]

@@ -13,6 +13,12 @@ HELP_TEXT = """Команды:
   create_table <имя> <столбец:тип> ... — создать таблицу
   list_tables                         — показать список таблиц
   drop_table <имя>                     — удалить таблицу
+  insert into <имя> values (...)       — добавить запись без ID
+  select from <имя> [where поле = значение]
+  update <имя> set поле = значение where поле = значение
+  delete from <имя> where поле = значение
+  info <имя>                          — схема и число записей
   help                                — справка
   exit или q                          — выход
-Поддерживаемые типы: int, str, bool."""
+Поддерживаемые типы: int, str, bool. Строки вводите в кавычках.
+Пример: insert into users values ("Сергей", 28, true)"""
