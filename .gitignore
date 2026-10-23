@@ -21,3 +21,9 @@ __pycache__/
 /db_meta.json
 /db_meta.json.tmp
 /data/
+
+# Local recorder, isolated demo databases and recordings
+/.tools/
+/.demo/
+/recordings/
+*.cast
